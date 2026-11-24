@@ -70,3 +70,23 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .analysis-chart { display: flex; align-items: flex-end; gap: 8px; height: 160px; padding: 12px 0; }
 .analysis-bar { flex: 1; border-radius: 4px 4px 0 0; background: var(--brand); min-width: 24px; position: relative; transition: height 0.4s; }
 .analysis-bar span { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
+/* 复核面板：暂存分区明细 / 可复核清单 / 对账历史 */
+.review-panel { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+.review-sub { border-top: 1px dashed var(--border); margin-top: 16px; padding-top: 12px; }
+.review-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.review-head h3 { margin: 0; font-size: 15px; }
+.review-desc { color: var(--muted); font-size: 12px; margin: 4px 0 10px; max-width: 760px; }
+.review-query { display: flex; gap: 8px; align-items: center; }
+.review-query input { border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; min-width: 220px; }
+.review-actions { display: flex; gap: 8px; margin: 10px 0; }
+.review-message { font-size: 12px; color: #334155; margin: 8px 0; }
+.version-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.version-rows { margin-top: 12px; }
+.data-table.compact th, .data-table.compact td { padding: 4px 8px; font-size: 12px; }
+.modal.wide { width: min(820px, 100%); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.muted { color: var(--muted); font-size: 12px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #eef2f7; font-size: 12px; }
+.tag.warn { background: #fff4e5; color: #b54708; }
+.analysis-form .inline-check { flex-direction: row; align-items: center; gap: 6px; }

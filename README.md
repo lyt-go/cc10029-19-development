@@ -11,11 +11,15 @@
 .
 ├── frontend/                 Vue 3 + Vite + TypeScript 前端
 │   ├── src/views/WorkbenchView.vue|tsx  全部模块共享工作台
+│   ├── src/views/StagingPartitionPanel.vue  暂存分区明细与版本面板
+│   ├── src/views/ReconcileReviewPanel.vue   可复核清单与对账历史面板
 │   ├── src/data/modules.ts              18个业务模块配置
 │   ├── src/api/              统一请求封装
 │   └── vite.config.ts        dev server 配置（open: false）
 ├── backend/                  FastAPI（Python） 后端
 │   ├── app/routers/resource.py  通用查询/导出/登记/动作接口
+│   ├── app/routers/staging_review.py    暂存分区复核接口
+│   ├── app/routers/reconcile_review.py  可复核清单/对账历史接口
 │   ├── app/services/<key>.py    每个模块独立领域逻辑
 │   ├── app/services/base.py     共享服务骨架
 │   └── app/store.py          内存数据仓库与示例数据
@@ -68,6 +72,28 @@ npm run dev
 | 历史重放 | `exchange_replay` | 重放任务 | 重放编号、归档编号、重放范围 |
 | 时效监控 | `sla_monitor` | 时效指标 | 指标编号、源端编号、约定到达时限 |
 | 通道配置 | `channel_config` | 传输通道 | 通道编号、传输协议、并发连接数 |
+
+## 到达对账复核链路
+
+暂存分区与到达对账额外提供一条可复核链路，解决“同一批次多个分区、多个数据版本”时对账无法重现的问题：
+
+1. **查询分区明细**：`GET /api/staging_area/partitions?batch_code=TRAN-xxx`
+   返回该批次全部暂存分区（P1、P2…）及其版本链、确认版本与确认行数。
+2. **冻结版本**：每次“确认落地”把分区当前数据写成不可变版本
+   （`data/<staging_versions>/<暂存编号>/vN.jsonl`）。补录只追加新的数据版本
+   （`POST /api/staging_area/partitions/{id}/append`），不改写已确认版本。
+3. **生成可复核清单**：`POST /api/arrival_reconcile/manifests`
+   逐分区钉住 `staging_code + data_version + record_count + checksum`，并冻结
+   应到行主键集合；清单生成后不再变化。
+4. **清单驱动对账**：`POST /api/arrival_reconcile/manifests/execute`
+   只读清单指向的分区版本，逐行生成实到与缺失。若清单生成后某分区又确认了
+   新版本，本次对账改用该分区的最新确认版本，并在结果与快照中写明
+   `used_alternate_version` 和“钉住版本 → 实际版本”的对应关系；不会合读两个版本。
+5. **历史复算与对读**：`GET /api/arrival_reconcile/history` 列出历史对账；
+   `POST /api/arrival_reconcile/{id}/recompute` 按留存的分区版本逐行复算；
+   历史项保留每个分区全部可打开版本（例如 4 行版与 5 行版），可分别打开比对。
+
+工作台里对应“暂存落地”页的分区明细面板与“到达对账”页的可复核清单/历史面板。
 
 ## 约定
 

@@ -83,10 +83,12 @@ class TransferBatchService(BaseModuleService):
         chunks = []
         for i in range(0, len(records), chunk_size):
             chunk = records[i:i + chunk_size]
-            for rec in chunk:
+            for offset, rec in enumerate(chunk):
                 rec["batch_code"] = batch_code
                 rec["chunk_index"] = i // chunk_size
                 rec["transferred_at"] = time.time()
+                # 记录主键按批次内全局行号生成，跨分区不重叠，供逐行对账使用
+                rec.setdefault("record_key", f"{batch_code}:{i + offset + 1}")
             self._write_jsonl(output_file, chunk)
             chunk_bytes = sum(len(str(r).encode("utf-8")) for r in chunk)
             chunks.append({"chunk_index": i // chunk_size, "record_count": len(chunk),
@@ -119,10 +121,11 @@ class TransferBatchService(BaseModuleService):
             "artifact_path": str(output_file),
         }
 
-        # 传输完成后自动触发暂存落地
+        # 传输完成后自动触发暂存落地（全量落 P1；后续分区由操作员按分区补落）
         try:
             sa_svc = self._safe_import("app.services.staging_area", "StagingAreaService")()
-            staging_result = sa_svc.land_batch(batch_code, total_written)
+            staging_result = sa_svc.land_batch(
+                batch_code, total_written, partition_no=1, expected_count=total_written)
             result["auto_staging"] = staging_result
         except Exception as e:
             result["auto_staging"] = {"error": str(e)}
@@ -142,7 +145,6 @@ class TransferBatchService(BaseModuleService):
             result["auto_reconcile"] = reconcile_result
         except Exception as e:
             result["auto_reconcile"] = {"error": str(e)}
-
         return result
 
     def mark_completed(self, batch_id: int) -> dict[str, Any]:

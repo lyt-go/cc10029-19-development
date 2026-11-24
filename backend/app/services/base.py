@@ -138,6 +138,55 @@ class BaseModuleService:
                         continue
         return records
 
+    def _write_jsonl_replace(self, filepath: Path, records: list[dict[str, Any]]) -> int:
+        """覆盖写入 jsonl 文件：版本化产物必须不可变，不能像日志一样追加。
+
+        每次写版本快照都使用覆盖模式，避免同一路径下混入上一次快照的记录，
+        这是“一份对账不能合读两个数据版本”的落盘基础。
+        """
+        _ensure_dir(filepath.parent)
+        with open(filepath, "w", encoding="utf-8") as f:
+            for rec in records:
+                f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+        return len(records)
+
+    def _write_json_file(self, filepath: Path, payload: Any) -> Path:
+        """覆盖写入 JSON 文件，用于清单、对账结果等结构化快照。"""
+        _ensure_dir(filepath.parent)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
+        return filepath
+
+    def _read_json_file(self, filepath: Path) -> Any:
+        """读取结构化 JSON 快照，文件不存在返回 None。"""
+        if not filepath.exists():
+            return None
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _stable_checksum(self, payload: Any) -> str:
+        """对结构做稳定序列化后计算校验值，用于版本/清单指纹比对。"""
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+        return self._compute_checksum(canonical)
+
+    @staticmethod
+    def _record_key(record: dict[str, Any]) -> str:
+        """生成记录级主键，供逐行比对实到/缺失时使用。
+
+        优先使用产物里显式写入的 record_key / 记录主键；旧产物没有时退回
+        批次键 + 行号；再没有则对整条记录做稳定摘要，保证不同版本之间可比。
+        """
+        for field in ("record_key", "记录主键"):
+            value = record.get(field)
+            if value not in (None, ""):
+                return str(value)
+        line_no = record.get("line_no")
+        if line_no is not None:
+            batch_key = record.get("batch_key") or record.get("batch_code") or ""
+            return f"{batch_key}:{line_no}"
+        canonical = json.dumps(record, ensure_ascii=False, sort_keys=True, default=str)
+        return "sha:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
     def _write_checkpoint(self, name: str, state: dict[str, Any]) -> Path:
         """将进度状态写入断点文件，支持跨模块水位推进与中断恢复。"""
         p = self._data_dir("checkpoints")

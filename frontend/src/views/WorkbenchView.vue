@@ -37,6 +37,9 @@
       <button class="btn ghost" data-testid="reset" type="button" @click="resetFilters">重置条件</button>
     </form>
 
+    <StagingPartitionPanel v-if="meta.key === 'staging_area'" />
+    <ReconcileReviewPanel v-if="meta.key === 'arrival_reconcile'" />
+
     <table class="data-table">
       <thead>
         <tr>
@@ -104,6 +107,8 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import ReconcileReviewPanel from '@/views/ReconcileReviewPanel.vue'
+import StagingPartitionPanel from '@/views/StagingPartitionPanel.vue'
 
 const props = defineProps<{ moduleKey: string }>()
 const meta = moduleMeta(props.moduleKey)
